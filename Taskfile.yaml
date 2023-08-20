@@ -2,22 +2,44 @@ version: "3"
 
 vars:
   ARTIFACT_PATH: ./artifact/lambda.zip
-  SQS_URL: http://localhost:4566/000000000000/lambda-sns
-
+  
 tasks:
   
   package_lambda_sns :
     desc : 發行lambda_SNS 函式 (.net6)
     cmds :
       - dotnet lambda package -pl ./sns -o {{.ARTIFACT_PATH}}
+
+  package_lambda_sqs :
+    desc : 發行lambda_SQS 函式 (.net6)
+    cmds :
+      - dotnet lambda package -pl ./sqs -o {{.ARTIFACT_PATH}}
   
   
-  lambda :
-    deps: [ package_lambda ]
+  lambda_sns :
+    deps: [ package_lambda_sns ]
     desc: 在工作站 (localstack) 中，啟動lambda
     vars:
       FUNCTION_NAME: lambda-sns
       FUNCTION_ENTRY : sns::sns.Function::FunctionHandler
+    cmds :
+      - AWS_PAGER=""  awslocal lambda delete-function 
+         --function-name {{.FUNCTION_NAME}} || true
+      - AWS_PAGER=""  awslocal lambda create-function 
+        --function-name {{.FUNCTION_NAME}}
+        --zip-file fileb://{{.ARTIFACT_PATH}}
+        --handler {{.FUNCTION_ENTRY}}
+        --runtime dotnet6 
+        --memory-size 512
+        --timeout 900
+        --role arn:aws:iam::000000000000:role/{{.ARTIFACT_PATH}}
+
+  lambda_sqs :
+    deps: [ package_lambda_sqs ]
+    desc: 在工作站 (localstack) 中，啟動lambda
+    vars:
+      FUNCTION_NAME: lambda-sqs
+      FUNCTION_ENTRY : sqs::sqs.Function::FunctionHandler
     cmds :
       - AWS_PAGER=""  awslocal lambda delete-function 
          --function-name {{.FUNCTION_NAME}} || true

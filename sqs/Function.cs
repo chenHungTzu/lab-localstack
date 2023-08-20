@@ -12,7 +12,7 @@ namespace sqs;
 
 public class Function
 {
-    const string AWS_SERVICE_URL = "http://localhost:4566/";
+    const string AWS_SERVICE_URL = "http://localhost:4566/"; //host.docker.internal
     const string AWS_DYNAMODB_TABLE_NAME = "sample-table";
     const string AWS_AUTH_REGION = "ap-northeast-1";
 

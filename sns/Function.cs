@@ -14,8 +14,8 @@ namespace sns;
 public class Function
 {
 
-    const string AWS_SERVICE_URL = "http://localhost:4566/";
-    const string AWS_QUEUE_URL = "http://localhost:4566/000000000000/sample-queue";
+    const string AWS_SERVICE_URL = "http://localhost:4566/"; //host.docker.internal
+    const string AWS_QUEUE_URL = "http://localhost:4566/000000000000/sample-queue"; //host.docker.internal
     const string AWS_AUTH_REGION = "ap-northeast-1";
     const string AWS_BUCKET_NAME = "sample-bucket";
 
