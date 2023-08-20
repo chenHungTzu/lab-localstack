@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.SQSEvents;
 
@@ -9,27 +12,35 @@ namespace sqs;
 
 public class Function
 {
-    /// <summary>
-    /// Default constructor. This constructor is used by Lambda to construct the instance. When invoked in a Lambda environment
-    /// the AWS credentials will come from the IAM role associated with the function and the AWS region will be set to the
-    /// region the Lambda function is executed in.
-    /// </summary>
+    const string AWS_SERVICE_URL = "http://localhost:4566/";
+    const string AWS_DYNAMODB_TABLE_NAME = "sample-table";
+    const string AWS_AUTH_REGION = "ap-northeast-1";
+
+    private AmazonDynamoDBClient? AmazonDynamoDBClient;
+
+
     public Function()
     {
+        InitS3Services();
+    }
+
+    private void InitS3Services()
+    {
+        var dynamoDBConfig = new AmazonDynamoDBConfig()
+        {
+            ServiceURL = AWS_SERVICE_URL,
+            AuthenticationRegion = AWS_AUTH_REGION,
+            UseHttp = true,
+
+        };
+        AmazonDynamoDBClient = new AmazonDynamoDBClient(dynamoDBConfig);
 
     }
 
 
-    /// <summary>
-    /// This method is called for every Lambda invocation. This method takes in an SQS event object and can be used 
-    /// to respond to SQS messages.
-    /// </summary>
-    /// <param name="evnt"></param>
-    /// <param name="context"></param>
-    /// <returns></returns>
     public async Task FunctionHandler(SQSEvent evnt, ILambdaContext context)
     {
-        foreach(var message in evnt.Records)
+        foreach (var message in evnt.Records)
         {
             await ProcessMessageAsync(message, context);
         }
@@ -39,7 +50,60 @@ public class Function
     {
         context.Logger.LogInformation($"Processed message {message.Body}");
 
+        try
+        {
+            var text = message.Body;
+
+            var payload = JsonSerializer.Deserialize<Sample_Result>(text);
+
+            DateTime epochTime = DateTime.Parse("1970-01-01");
+
+            var item = new Dictionary<string, AttributeValue>
+            {
+                ["ID"] = new AttributeValue { S = payload.ID },
+                ["KEY"] = new AttributeValue { S = payload.KEY },
+                ["DATETIME"] = new AttributeValue { N = payload.DATETIME.Subtract(epochTime).TotalMilliseconds.ToString() },
+            };
+
+            await AmazonDynamoDBClient.PutItemAsync(AWS_DYNAMODB_TABLE_NAME, item);
+
+        }
+        catch (System.Exception ex)
+        {
+            Console.WriteLine($"Error saving {message.Body}: {ex.Message}");
+            throw;
+        }
+
+
         // TODO: Do interesting work based on the new message
         await Task.CompletedTask;
     }
+
+    public class Sample_Result
+    {
+        public string ID { get; set; }
+        public string KEY { get; set; }
+        public DateTime DATETIME { get; set; }
+    }
+
 }
+// {
+//   "Records": [
+//     {
+//       "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
+//       "receiptHandle": "MessageReceiptHandle",
+//       "body": "{\"ID\":\"0000000001\",\"KEY\":\"CHEN\",\"DATETIME\":\"2023-08-20T14:33:24.245478+08:00\"}",
+//       "attributes": {
+//         "ApproximateReceiveCount": "1",
+//         "SentTimestamp": "1523232000000",
+//         "SenderId": "123456789012",
+//         "ApproximateFirstReceiveTimestamp": "1523232000001"
+//       },
+//       "messageAttributes": {},
+//       "md5OfBody": "7b270e59b47ff90a553787216d55d91d",
+//       "eventSource": "aws:sqs",
+//       "eventSourceARN": "arn:{partition}:sqs:{region}:123456789012:MyQueue",
+//       "awsRegion": "{region}"
+//     }
+//   ]
+// }
