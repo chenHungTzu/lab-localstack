@@ -108,3 +108,6 @@ public class Sample_Result
     public string ID { get; set; }
     public string KEY { get; set; }
 }
+
+
+//http://localhost:5000/Sample/yeh
